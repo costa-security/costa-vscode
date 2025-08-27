@@ -37,7 +37,18 @@
     "configuration": {
       "type": "object",
       "title": "costa",
-      "properties": {}
+      "properties": {
+        "costa.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "API token for connecting to the Costa service"
+        },
+        "costa.apiEndpoint": {
+          "type": "string",
+          "default": "https://ai.costa.app",
+          "description": "API endpoint for the Costa service"
+        }
+      }
     }
   },
   "scripts": {

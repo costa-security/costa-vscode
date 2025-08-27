@@ -7,7 +7,10 @@
 
 <!-- configs -->
 
-**No data**
+| Key                 | Description                                   | Type     | Default                  |
+| ------------------- | --------------------------------------------- | -------- | ------------------------ |
+| `costa.apiToken`    | API token for connecting to the Costa service | `string` | `""`                     |
+| `costa.apiEndpoint` | API endpoint for the Costa service            | `string` | `"https://ai.costa.app"` |
 
 <!-- configs -->
 
