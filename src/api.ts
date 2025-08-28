@@ -1,11 +1,22 @@
 import type { OutputChannel } from 'vscode'
+import * as process from 'node:process'
 import { window } from 'vscode'
 import { config } from './config'
+import { oauth2Client } from './oauth'
+
+// Load environment variables in development
+if (process.env.NODE_ENV !== 'production') {
+  import('dotenv').then((dotenv) => {
+    dotenv.config()
+  }).catch(() => {
+    // dotenv not available, skip
+  })
+}
 
 // Create output channel for logging
 let outputChannel: OutputChannel | null = null
 
-function getOutputChannel(): OutputChannel {
+export function getOutputChannel(): OutputChannel {
   if (!outputChannel) {
     outputChannel = window.createOutputChannel('Costa')
   }
@@ -35,16 +46,25 @@ export function setConnectionStatusCallback(callback: (connected: boolean) => vo
   onConnectionStatusChange = callback
 }
 
-export function connectToAPI() {
+export async function connectToAPI() {
   // Clear any existing reconnection timeout
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout)
     reconnectTimeout = null
   }
 
-  // Check if we have an API token
-  if (!config.apiToken) {
-    window.showErrorMessage('Costa API token not configured. Please set costa.apiToken in your settings.')
+  // Get OAuth2 access token
+  const accessToken = await oauth2Client.getAccessToken()
+
+  // Check if we have a valid token
+  if (!accessToken) {
+    // Try to login if not logged in
+    if (!oauth2Client.isLoggedIn()) {
+      window.showErrorMessage('Please log in to Costa first using the "Costa: Login" command.')
+    }
+    else {
+      window.showErrorMessage('Your session has expired. Please log in again using the "Costa: Login" command.')
+    }
     return
   }
 
@@ -54,9 +74,10 @@ export function connectToAPI() {
   }
 
   try {
-    // Create WebSocket connection
-    const wsUrl = `${config.apiEndpoint.replace('http', 'ws')}/websocket`
-    socket = new WebSocket(`${wsUrl}?token=${config.apiToken}`)
+    // Determine API base URL (use environment variable in development)
+    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl
+    const wsUrl = `${apiBaseUrl.replace('http', 'ws')}/websocket`
+    socket = new WebSocket(`${wsUrl}?token=${accessToken}`)
 
     socket.onopen = () => {
       getOutputChannel().appendLine('Connected to Costa API')

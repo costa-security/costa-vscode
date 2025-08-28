@@ -12,6 +12,8 @@
 
   // Disable the default formatter, use eslint instead
   "prettier.enable": false,
+  "files.trimTrailingWhitespace": true,
+
   "editor.formatOnSave": false,
 
   // Auto fix

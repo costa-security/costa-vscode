@@ -7,10 +7,12 @@
 
 <!-- configs -->
 
-| Key                 | Description                                   | Type     | Default                  |
-| ------------------- | --------------------------------------------- | -------- | ------------------------ |
-| `costa.apiToken`    | API token for connecting to the Costa service | `string` | `""`                     |
-| `costa.apiEndpoint` | API endpoint for the Costa service            | `string` | `"https://ai.costa.app"` |
+| Key                        | Description                                                                           | Type     | Default                                         |
+| -------------------------- | ------------------------------------------------------------------------------------- | -------- | ----------------------------------------------- |
+| `costa.apiToken`           | API token for connecting to the Costa service (deprecated - use OAuth2 login instead) | `string` | `""`                                            |
+| `costa.apiBaseUrl`         | Base URL for the Costa API                                                            | `string` | `"https://ai.costa.app"`                        |
+| `costa.oauth2.clientId`    | OAuth2 client ID for this VS Code extension                                           | `string` | `"e8YclcbCo5Pzac7KtFNoKWSpcs9FcZvBsHqMKKfpvMU"` |
+| `costa.oauth2.redirectUri` | OAuth2 redirect URI for this VS Code extension                                        | `string` | `"vscode://costa.costa-code/callback"`          |
 
 <!-- configs -->
 
@@ -18,7 +20,10 @@
 
 <!-- commands -->
 
-**No data**
+| Command        | Title                |
+| -------------- | -------------------- |
+| `costa.login`  | Costa: Costa: Login  |
+| `costa.logout` | Costa: Costa: Logout |
 
 <!-- commands -->
 

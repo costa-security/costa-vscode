@@ -1,6 +1,6 @@
 {
-  "publisher": "antfu",
-  "name": "costa",
+  "publisher": "costa",
+  "name": "costa-code",
   "displayName": "costa",
   "version": "0.0.1-dev",
   "private": true,
@@ -30,10 +30,22 @@
     "vscode": "^1.97.0"
   },
   "activationEvents": [
+    "onUri",
     "onStartupFinished"
   ],
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "costa.login",
+        "title": "Costa: Login",
+        "category": "Costa"
+      },
+      {
+        "command": "costa.logout",
+        "title": "Costa: Logout",
+        "category": "Costa"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "costa",
@@ -41,12 +53,22 @@
         "costa.apiToken": {
           "type": "string",
           "default": "",
-          "description": "API token for connecting to the Costa service"
+          "description": "API token for connecting to the Costa service (deprecated - use OAuth2 login instead)"
         },
-        "costa.apiEndpoint": {
+        "costa.apiBaseUrl": {
           "type": "string",
           "default": "https://ai.costa.app",
-          "description": "API endpoint for the Costa service"
+          "description": "Base URL for the Costa API"
+        },
+        "costa.oauth2.clientId": {
+          "type": "string",
+          "default": "e8YclcbCo5Pzac7KtFNoKWSpcs9FcZvBsHqMKKfpvMU",
+          "description": "OAuth2 client ID for this VS Code extension"
+        },
+        "costa.oauth2.redirectUri": {
+          "type": "string",
+          "default": "vscode://costa.costa-code/callback",
+          "description": "OAuth2 redirect URI for this VS Code extension"
         }
       }
     }
@@ -63,6 +85,9 @@
     "release": "bumpp",
     "ext:package": "vsce package --no-dependencies",
     "ext:publish": "vsxpub --no-dependencies"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.2.1",

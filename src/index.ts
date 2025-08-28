@@ -1,14 +1,23 @@
-import { defineExtension } from 'reactive-vscode'
-import { commands, StatusBarAlignment, ThemeColor, window } from 'vscode'
+import { defineExtension, useCommands } from 'reactive-vscode'
+import { StatusBarAlignment, ThemeColor, window } from 'vscode'
+import { oauth2Client } from './oauth'
+import { getOutputChannel } from './api'
 
-const { activate, deactivate } = defineExtension(() => {
+const { activate, deactivate } = defineExtension((context) => {
+  // Initialize OAuth2 client with context
+  oauth2Client.setContext(context)
+  
+  // Add startup logging
+  getOutputChannel().appendLine('Costa extension activated')
+  console.log('Costa extension activated - startup logging working')
+
   window.showInformationMessage('opening the pod bay doors...')
 
   // Create a status bar item
   const statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 100)
   statusBarItem.text = '💫'
-  statusBarItem.tooltip = 'Costa VS Code Extension'
-  statusBarItem.command = 'costa.showExtensionInfo'
+  statusBarItem.tooltip = 'Costa VS Code Extension - Click to login'
+  statusBarItem.command = 'costa.login'
   statusBarItem.show()
 
   // Create count status item
@@ -100,19 +109,30 @@ const { activate, deactivate } = defineExtension(() => {
     updateContextLength() // Update context length every iteration too
   }, intervalTime)
 
-  // Register commands for different status bar actions
-  const extensionInfoCommand = commands.registerCommand('costa.showExtensionInfo', () => {
-    window.showInformationMessage('💫 ready to explore the universe?')
-  })
-
-  const progressDetailsCommand = commands.registerCommand('costa.showProgressDetails', () => {
-    const percentage = (currentCount / totalCount) * 100
-    window.showInformationMessage(`Costa Progress: ${currentCount}/${totalCount} (${Math.round(percentage)}%)`)
-  })
-
-  const contextDetailsCommand = commands.registerCommand('costa.showContextDetails', () => {
-    const contextLength = Math.floor(Math.random() * (120000)) + 1000
-    window.showInformationMessage(`Context Length: ${contextLength.toLocaleString()} tokens`)
+  // Register all commands
+  useCommands({
+    'costa.showExtensionInfo': () => {
+      window.showInformationMessage('💫 ready to explore the universe?')
+    },
+    'costa.showProgressDetails': () => {
+      const percentage = (currentCount / totalCount) * 100
+      window.showInformationMessage(`Costa Progress: ${currentCount}/${totalCount} (${Math.round(percentage)}%)`)
+    },
+    'costa.showContextDetails': () => {
+      const contextLength = Math.floor(Math.random() * (120000)) + 1000
+      window.showInformationMessage(`Context Length: ${contextLength.toLocaleString()} tokens`)
+    },
+    'costa.login': async () => {
+      window.showInformationMessage('Starting Costa authentication process...')
+      const success = await oauth2Client.login()
+      if (success) {
+        window.showInformationMessage('Successfully logged in to Costa')
+      }
+    },
+    'costa.logout': async () => {
+      oauth2Client.logout()
+      window.showInformationMessage('Logged out from Costa')
+    },
   })
 
   // Return a cleanup function to dispose the status bar items
@@ -121,9 +141,6 @@ const { activate, deactivate } = defineExtension(() => {
     countStatusItem.dispose()
     contextStatusItem.dispose()
     clearInterval(intervalId)
-    extensionInfoCommand.dispose()
-    progressDetailsCommand.dispose()
-    contextDetailsCommand.dispose()
   }
 })
 
