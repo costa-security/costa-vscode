@@ -76,7 +76,7 @@ class OAuth2Client {
       }
 
       // Determine API base URL (use environment variable in development)
-      const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.costaApiBaseUrl
+      const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
 
       // Get OAuth2 configuration
       // Log all config values for debugging
@@ -90,25 +90,14 @@ class OAuth2Client {
       }
 
       // Try accessing the values directly using dot notation vs bracket notation
-      debugLog(`config.costaApiBaseUrl: ${config.costaApiBaseUrl}`)
-      debugLog(`config.costaApiBaseUrl: ${config.costaApiBaseUrl}`)
+      debugLog(`config: ${JSON.stringify(config)}`)
 
-      // Try different ways of accessing the nested properties
-      debugLog(`Direct access - config.costaOauth2ClientId: ${config.costaOauth2ClientId}`)
-      // @ts-expect-error - This is for debugging only
-      debugLog(`Try with object path - config.costaOauth2ClientId: ${config.costaOauth2ClientId || 'undefined/null'}`)
-
-      // Access OAuth2 configuration using the correct shorthand keys
-      const clientId = config.costaOauth2ClientId
-      const redirectUri = config.costaOauth2RedirectUri
+      // Access OAuth2 configuration using the correct nested structure
+      const clientId = config.oauth2.clientId
+      const redirectUri = config.oauth2.redirectUri
 
       debugLog(`Correctly accessing config.oauth2.clientId: ${clientId}`)
       debugLog(`Correctly accessing config.oauth2.redirectUri: ${redirectUri}`)
-
-      debugLog(`Trying to access config.costaOauth2ClientId: ${config.costaOauth2ClientId}`)
-      debugLog(`Type of config.costaOauth2ClientId: ${typeof config.costaOauth2ClientId}`)
-      debugLog(`Trying to access config.costaOauth2RedirectUri: ${config.costaOauth2RedirectUri}`)
-      debugLog(`Type of config.costaOauth2RedirectUri: ${typeof config.costaOauth2RedirectUri}`)
 
       debugLog(`API Base URL: ${apiBaseUrl}`)
       debugLog(`Client ID: ${clientId}`)
@@ -245,17 +234,21 @@ class OAuth2Client {
 
   private async exchangeCodeForToken(code: string, codeVerifier: string): Promise<any> {
     // Determine API base URL (use environment variable in development)
-    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.costaApiBaseUrl
+    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
 
     // Get OAuth2 configuration
     debugLog(`exchangeCodeForToken - All config values: ${JSON.stringify(config, null, 2)}`)
-    const clientId = config.costaOauth2ClientId
-    const redirectUri = config.costaOauth2RedirectUri
+    const clientId = config.oauth2clientId
+    const redirectUri = config.oauth2redirectUri
 
     getOutputChannel().appendLine(`exchangeCodeForToken - Client ID: ${clientId}`)
     getOutputChannel().appendLine(`exchangeCodeForToken - Redirect URI: ${redirectUri}`)
 
     const tokenUrl = new URL(`${apiBaseUrl}/oauth/token`)
+
+    if (!clientId || !redirectUri) {
+      throw new Error('OAuth2 configuration error: clientId or redirectUri is undefined');
+    }
 
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
