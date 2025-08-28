@@ -7,10 +7,11 @@ import { config } from './config'
 
 // Use a more comprehensive logging approach
 function debugLog(message: string) {
-  console.warn(`[COSTA-OAUTH] ${message}`)  // This goes to Debug Console
+  console.warn(`[COSTA-OAUTH] ${message}`) // This goes to Debug Console
   try {
-    getOutputChannel().appendLine(message)      // This goes to Output panel
-  } catch {
+    getOutputChannel().appendLine(message) // This goes to Output panel
+  }
+  catch {
     // Fallback if getOutputChannel is not available during early startup
     console.warn(`[COSTA-FALLBACK] ${message}`)
   }
@@ -75,7 +76,7 @@ class OAuth2Client {
       }
 
       // Determine API base URL (use environment variable in development)
-      const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl
+      const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.costaApiBaseUrl
 
       // Get OAuth2 configuration
       // Log all config values for debugging
@@ -89,13 +90,13 @@ class OAuth2Client {
       }
 
       // Try accessing the values directly using dot notation vs bracket notation
-      debugLog(`config.apiBaseUrl: ${config.apiBaseUrl}`)
-      debugLog(`config['apiBaseUrl']: ${config['apiBaseUrl']}`)
+      debugLog(`config.costaApiBaseUrl: ${config.costaApiBaseUrl}`)
+      debugLog(`config.costaApiBaseUrl: ${config.costaApiBaseUrl}`)
 
       // Try different ways of accessing the nested properties
-      debugLog(`Direct access - config['oauth2.clientId']: ${config['oauth2.clientId']}`)
+      debugLog(`Direct access - config.costaOauth2ClientId: ${config.costaOauth2ClientId}`)
       // @ts-expect-error - This is for debugging only
-      debugLog(`Try with object path - config.oauth2?.clientId: ${config.oauth2?.clientId || 'undefined/null'}`)
+      debugLog(`Try with object path - config.costaOauth2ClientId: ${config.costaOauth2ClientId || 'undefined/null'}`)
 
       // Access OAuth2 configuration using the correct shorthand keys
       const clientId = config.costaOauth2ClientId
@@ -104,10 +105,10 @@ class OAuth2Client {
       debugLog(`Correctly accessing config.oauth2.clientId: ${clientId}`)
       debugLog(`Correctly accessing config.oauth2.redirectUri: ${redirectUri}`)
 
-      debugLog(`Trying to access config['oauth2.clientId']: ${config['oauth2.clientId']}`)
-      debugLog(`Type of config['oauth2.clientId']: ${typeof config['oauth2.clientId']}`)
-      debugLog(`Trying to access config['oauth2.redirectUri']: ${config['oauth2.redirectUri']}`)
-      debugLog(`Type of config['oauth2.redirectUri']: ${typeof config['oauth2.redirectUri']}`)
+      debugLog(`Trying to access config.costaOauth2ClientId: ${config.costaOauth2ClientId}`)
+      debugLog(`Type of config.costaOauth2ClientId: ${typeof config.costaOauth2ClientId}`)
+      debugLog(`Trying to access config.costaOauth2RedirectUri: ${config.costaOauth2RedirectUri}`)
+      debugLog(`Type of config.costaOauth2RedirectUri: ${typeof config.costaOauth2RedirectUri}`)
 
       debugLog(`API Base URL: ${apiBaseUrl}`)
       debugLog(`Client ID: ${clientId}`)
@@ -170,16 +171,19 @@ class OAuth2Client {
           getOutputChannel().appendLine('OAuth2 login successful')
           window.showInformationMessage('Successfully logged in to Costa')
           return true
-        } catch (error) {
+        }
+        catch (error) {
           getOutputChannel().appendLine(`OAuth2 token exchange error: ${error}`)
           window.showErrorMessage(`OAuth2 token exchange failed: ${error}`)
           return false
         }
-      } else {
+      }
+      else {
         window.showErrorMessage('Login cancelled - no authorization code provided')
         return false
       }
-    } catch (error) {
+    }
+    catch (error) {
       getOutputChannel().appendLine(`OAuth2 login error: ${error}`)
       window.showErrorMessage(`OAuth2 login failed: ${error}`)
       return false
@@ -226,7 +230,8 @@ class OAuth2Client {
       }
       const tokenStr = this.context.globalState.get<string>('costa.oauth2.token')
       return tokenStr ? JSON.parse(tokenStr) : null
-    } catch (error) {
+    }
+    catch (error) {
       getOutputChannel().appendLine(`Error loading token: ${error}`)
       return null
     }
@@ -240,7 +245,7 @@ class OAuth2Client {
 
   private async exchangeCodeForToken(code: string, codeVerifier: string): Promise<any> {
     // Determine API base URL (use environment variable in development)
-    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl
+    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.costaApiBaseUrl
 
     // Get OAuth2 configuration
     debugLog(`exchangeCodeForToken - All config values: ${JSON.stringify(config, null, 2)}`)

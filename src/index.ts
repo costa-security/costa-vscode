@@ -1,15 +1,15 @@
 import { defineExtension, useCommands } from 'reactive-vscode'
 import { StatusBarAlignment, ThemeColor, window } from 'vscode'
-import { oauth2Client } from './oauth'
 import { getOutputChannel } from './api'
+import { oauth2Client } from './oauth'
 
 const { activate, deactivate } = defineExtension((context) => {
   // Initialize OAuth2 client with context
   oauth2Client.setContext(context)
-  
+
   // Add startup logging
   getOutputChannel().appendLine('Costa extension activated')
-  console.log('Costa extension activated - startup logging working')
+  console.warn('Costa extension activated - startup logging working')
 
   window.showInformationMessage('opening the pod bay doors...')
 
@@ -93,6 +93,9 @@ const { activate, deactivate } = defineExtension((context) => {
     }
     else if (contextLength >= 10000) {
       contextStatusItem.color = new ThemeColor('charts.green')
+    }
+    else {
+      // Do nothing
     }
 
     contextStatusItem.text = `$(book) ${formatted}`
