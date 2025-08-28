@@ -1,7 +1,7 @@
 import type { ExtensionContext } from 'vscode'
 import * as crypto from 'node:crypto'
 import * as process from 'node:process'
-import { env, Uri, window } from 'vscode'
+import { env, Uri, window, commands } from 'vscode'
 import { getOutputChannel } from './api'
 import { config } from './config'
 
@@ -39,6 +39,7 @@ class OAuth2Client {
   private token: OAuthToken | null = null
   private context: ExtensionContext | null = null
   private codeVerifier: string | null = null
+  private pendingLogin: { resolve: (value: boolean) => void; reject: (reason: any) => void } | null = null
 
   setContext(context: ExtensionContext) {
     this.context = context
@@ -67,8 +68,13 @@ class OAuth2Client {
       this.codeVerifier = this.generateCodeVerifier()
       const codeChallenge = this.generateCodeChallenge(this.codeVerifier)
 
+      // Log PKCE values for debugging/testing
+      debugLog(`Generated Code Verifier: ${this.codeVerifier}`)
+      debugLog(`Generated Code Challenge: ${codeChallenge}`)
+
       // Create state parameter for security
       const state = crypto.randomBytes(16).toString('hex')
+      debugLog(`Generated State: ${state}`)
 
       // Store state in global state for verification later
       if (this.context) {
@@ -79,31 +85,12 @@ class OAuth2Client {
       const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
 
       // Get OAuth2 configuration
-      // Log all config values for debugging
-      debugLog(`All config values: ${JSON.stringify(config, null, 2)}`)
-      debugLog(`Config keys: ${Object.keys(config).join(', ')}`)
-
-      // Check what's in the config object using Object.entries
-      debugLog('Config entries:')
-      for (const [key, value] of Object.entries(config)) {
-        debugLog(`  ${key}: ${value} (${typeof value})`)
-      }
-
-      // Try accessing the values directly using dot notation vs bracket notation
-      debugLog(`config: ${JSON.stringify(config)}`)
-
-      // Access OAuth2 configuration using the correct nested structure
       const clientId = config.oauth2.clientId
       const redirectUri = config.oauth2.redirectUri
-
-      debugLog(`Correctly accessing config.oauth2.clientId: ${clientId}`)
-      debugLog(`Correctly accessing config.oauth2.redirectUri: ${redirectUri}`)
 
       debugLog(`API Base URL: ${apiBaseUrl}`)
       debugLog(`Client ID: ${clientId}`)
       debugLog(`Redirect URI: ${redirectUri}`)
-      debugLog(`Client ID truthiness: ${!!clientId}`)
-      debugLog(`Redirect URI truthiness: ${!!redirectUri}`)
 
       // Check if values are undefined and show error
       if (!clientId || !redirectUri) {
@@ -118,7 +105,7 @@ class OAuth2Client {
       authUrl.searchParams.append('client_id', clientId)
       authUrl.searchParams.append('redirect_uri', redirectUri)
       authUrl.searchParams.append('response_type', 'code')
-      authUrl.searchParams.append('scope', 'openid profile email usage_information user_actions')
+      authUrl.searchParams.append('scope', 'openid profile email usage_information offline_access view_notifications')
       authUrl.searchParams.append('state', state)
       authUrl.searchParams.append('code_challenge', codeChallenge)
       authUrl.searchParams.append('code_challenge_method', 'S256')
@@ -128,55 +115,117 @@ class OAuth2Client {
       await env.openExternal(uri)
 
       getOutputChannel().appendLine(`Opened browser for OAuth2 authentication: ${authUrl.toString()}`)
+      debugLog(`Full Authorization URL: ${authUrl.toString()}`)
       window.showInformationMessage('Opened browser for Costa authentication. Please complete the login process.')
 
-      // In a real implementation, we would need to handle the redirect
-      // For now, let's show a message to the user
-      window.showInformationMessage('Please complete authentication in your browser. After logging in, you will be redirected back to VS Code.')
+      // Set up a promise that will be resolved when we receive the callback
+      return new Promise<boolean>((resolve, reject) => {
+        this.pendingLogin = { resolve, reject };
 
-      // In a complete implementation, we would set up a proper redirect handler
-      // For now, let's wait a bit and then ask the user to paste the code from the callback URL
-      await new Promise(resolve => setTimeout(resolve, 5000))
+        // Register a disposable to handle the callback
+        const disposable = commands.registerCommand('costa.handleOAuthCallback', async (uri: Uri) => {
+          debugLog(`Received OAuth callback: ${uri.toString()}`)
+          try {
+            // Parse the callback URL
+            const query = new URLSearchParams(uri.query)
+            const code = query.get('code')
+            const receivedState = query.get('state')
+            const error = query.get('error')
 
-      const codeInput = await window.showInputBox({
-        prompt: 'Enter the authorization code from the callback URL (the "code" parameter)',
-        placeHolder: 'Authorization code',
-        ignoreFocusOut: true,
-      })
+            // Clean up the disposable
+            disposable.dispose()
 
-      if (codeInput) {
-        // Exchange the authorization code for an access token
-        try {
-          const tokenResponse = await this.exchangeCodeForToken(codeInput, this.codeVerifier!)
+            if (error) {
+              const errorMessage = `OAuth2 authentication failed: ${error}`
+              debugLog(errorMessage)
+              window.showErrorMessage(errorMessage)
+              this.pendingLogin?.resolve(false)
+              this.pendingLogin = null
+              return
+            }
 
-          // Save the token
-          this.token = {
-            access_token: tokenResponse.access_token,
-            refresh_token: tokenResponse.refresh_token,
-            expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in, // Add expires_in to current time
-            token_type: tokenResponse.token_type,
+            if (!code) {
+              const errorMessage = 'OAuth2 authentication failed: No authorization code received'
+              debugLog(errorMessage)
+              window.showErrorMessage(errorMessage)
+              this.pendingLogin?.resolve(false)
+              this.pendingLogin = null
+              return
+            }
+
+            debugLog(`Received Authorization Code: ${code}`)
+
+            // Verify state parameter
+            const storedState = this.context?.globalState.get<string>('costa.oauth2.state')
+            debugLog(`Stored State: ${storedState}`)
+            debugLog(`Received State: ${receivedState}`)
+
+            if (storedState !== receivedState) {
+              const errorMessage = 'OAuth2 authentication failed: Invalid state parameter'
+              debugLog(errorMessage)
+              window.showErrorMessage(errorMessage)
+              this.pendingLogin?.resolve(false)
+              this.pendingLogin = null
+              return
+            }
+
+            // Exchange the authorization code for an access token
+            try {
+              debugLog(`Exchanging code for token with Code Verifier: ${this.codeVerifier}`)
+              const tokenResponse = await this.exchangeCodeForToken(code, this.codeVerifier!)
+
+              // Display the token in a dialog (as requested)
+              window.showInformationMessage(`Your access token is: ${tokenResponse.access_token}`,
+                { modal: true, detail: 'This is your OAuth2 access token. Keep it secure.' });
+
+              // Save the token
+              this.token = {
+                access_token: tokenResponse.access_token,
+                refresh_token: tokenResponse.refresh_token,
+                expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in, // Add expires_in to current time
+                token_type: tokenResponse.token_type,
+              }
+              this.saveToken()
+              getOutputChannel().appendLine('OAuth2 login successful')
+              window.showInformationMessage('Successfully logged in to Costa')
+
+              this.pendingLogin?.resolve(true)
+              this.pendingLogin = null
+            }
+            catch (error) {
+              getOutputChannel().appendLine(`OAuth2 token exchange error: ${error}`)
+              window.showErrorMessage(`OAuth2 token exchange failed: ${error}`)
+              this.pendingLogin?.resolve(false)
+              this.pendingLogin = null
+            }
           }
-          this.saveToken()
-          getOutputChannel().appendLine('OAuth2 login successful')
-          window.showInformationMessage('Successfully logged in to Costa')
-          return true
-        }
-        catch (error) {
-          getOutputChannel().appendLine(`OAuth2 token exchange error: ${error}`)
-          window.showErrorMessage(`OAuth2 token exchange failed: ${error}`)
-          return false
-        }
-      }
-      else {
-        window.showErrorMessage('Login cancelled - no authorization code provided')
-        return false
-      }
+          catch (error) {
+            getOutputChannel().appendLine(`OAuth2 callback error: ${error}`)
+            window.showErrorMessage(`OAuth2 callback failed: ${error}`)
+            disposable.dispose()
+            this.pendingLogin?.resolve(false)
+            this.pendingLogin = null
+          }
+        })
+
+        // Register the command
+        this.context?.subscriptions.push(disposable)
+
+        // Show a message to the user
+        window.showInformationMessage('Please complete authentication in your browser. You will be redirected back to VS Code automatically.')
+      });
     }
     catch (error) {
       getOutputChannel().appendLine(`OAuth2 login error: ${error}`)
       window.showErrorMessage(`OAuth2 login failed: ${error}`)
       return false
     }
+  }
+
+  // Method to handle OAuth callback from URI handler
+  handleCallback(uri: Uri): void {
+    debugLog(`handleCallback called with URI: ${uri.toString()}`)
+    commands.executeCommand('costa.handleOAuthCallback', uri);
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -237,9 +286,8 @@ class OAuth2Client {
     const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
 
     // Get OAuth2 configuration
-    debugLog(`exchangeCodeForToken - All config values: ${JSON.stringify(config, null, 2)}`)
-    const clientId = config.oauth2clientId
-    const redirectUri = config.oauth2redirectUri
+    const clientId = config.oauth2.clientId
+    const redirectUri = config.oauth2.redirectUri
 
     getOutputChannel().appendLine(`exchangeCodeForToken - Client ID: ${clientId}`)
     getOutputChannel().appendLine(`exchangeCodeForToken - Redirect URI: ${redirectUri}`)
@@ -260,6 +308,18 @@ class OAuth2Client {
 
     getOutputChannel().appendLine(`Exchanging code for token at: ${tokenUrl.toString()}`)
     getOutputChannel().appendLine(`Token request params: ${params.toString()}`)
+
+    // Log the curl command for testing
+    const curlCommand = `curl -X POST "${tokenUrl.toString()}" \\
+  -H "Content-Type: application/x-www-form-urlencoded" \\
+  -d "grant_type=authorization_code" \\
+  -d "client_id=${clientId}" \\
+  -d "code=${code}" \\
+  -d "redirect_uri=${redirectUri}" \\
+  -d "code_verifier=${codeVerifier}"`;
+
+    debugLog(`CURL command for testing token exchange:`)
+    debugLog(curlCommand)
 
     // In a real implementation, we would make an HTTP request to exchange the code
     // For now, let's simulate a successful response

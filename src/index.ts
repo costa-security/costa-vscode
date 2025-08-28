@@ -1,5 +1,5 @@
 import { defineExtension, useCommands } from 'reactive-vscode'
-import { StatusBarAlignment, ThemeColor, window } from 'vscode'
+import { commands, StatusBarAlignment, ThemeColor, window, Uri } from 'vscode'
 import { getOutputChannel } from './api'
 import { oauth2Client } from './oauth'
 
@@ -136,7 +136,32 @@ const { activate, deactivate } = defineExtension((context) => {
       oauth2Client.logout()
       window.showInformationMessage('Logged out from Costa')
     },
+    'costa.oauthCallback': async (uri: Uri) => {
+      // This command will be called when the OAuth callback URI is opened
+      // Forward to the OAuth2 client
+      console.log('Received OAuth callback URI:', uri.toString())
+      getOutputChannel().appendLine(`Received OAuth callback URI: ${uri.toString()}`)
+      oauth2Client.handleCallback(uri)
+    }
   })
+
+  // Handle URI callbacks
+  context.subscriptions.push(
+    window.registerUriHandler({
+      handleUri(uri: Uri) {
+        console.log('URI Handler received:', uri.toString())
+        getOutputChannel().appendLine(`URI Handler received: ${uri.toString()}`)
+
+        // Check if this is our OAuth callback
+        if (uri.path === '/callback') {
+          // Execute the callback command with the URI
+          commands.executeCommand('costa.oauthCallback', uri)
+        } else {
+          getOutputChannel().appendLine(`Unknown URI path: ${uri.path}`)
+        }
+      }
+    })
+  )
 
   // Return a cleanup function to dispose the status bar items
   return () => {

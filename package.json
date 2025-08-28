@@ -62,7 +62,7 @@
         },
         "costa.oauth2.clientId": {
           "type": "string",
-          "default": "y9rgm-wmEh3EyoTWYmC88mrtu-v97eUS52FXJQ382Zg",
+          "default": "gIHQQx53_0-WrUnLHQ83Gtn67-IMWbKjLt5xpFK9Ecs",
           "description": "OAuth2 client ID for this VS Code extension"
         },
         "costa.oauth2.redirectUri": {
@@ -71,7 +71,12 @@
           "description": "OAuth2 redirect URI for this VS Code extension"
         }
       }
-    }
+    },
+    "uriHandlers": [
+      {
+        "uri": "vscode://costa.costa-code/callback"
+      }
+    ]
   },
   "scripts": {
     "build": "tsdown src/index.ts --external vscode",
