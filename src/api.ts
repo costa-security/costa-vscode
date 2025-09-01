@@ -4,17 +4,6 @@ import { window } from 'vscode'
 import { config } from './config'
 import { oauth2Client } from './oauth'
 
-function debugLog(message: string) {
-  console.warn(`[COSTA-OAUTH] ${message}`) // This goes to Debug Console
-  try {
-    getOutputChannel().appendLine(message) // This goes to Output panel
-  }
-  catch {
-    // Fallback if getOutputChannel is not available during early startup
-    console.warn(`[COSTA-FALLBACK] ${message}`)
-  }
-}
-
 // Load environment variables in development
 if (process.env.NODE_ENV !== 'production') {
   import('dotenv').then((dotenv) => {

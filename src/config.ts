@@ -1,12 +1,13 @@
-import * as vscode from 'vscode';
+import * as vscode from 'vscode'
 
-// Fetches the whole config scope for the "costa" namespace
-const costaConfig = vscode.workspace.getConfiguration('costa');
+// Get the configuration for the "costa" namespace
+const costaConfig = vscode.workspace.getConfiguration('costa')
 
-// Now you can safely read individual properties:
-const apiToken   = costaConfig.get<string>('apiToken');
-const apiBaseUrl = costaConfig.get<string>('apiBaseUrl');
-const clientId   = costaConfig.get<string>('oauth2.clientId');
-const redirect   = costaConfig.get<string>('oauth2.redirectUri');
+// Export individual configuration values
+export const API_TOKEN = costaConfig.get<string>('apiToken') || ''
+export const API_BASE_URL = costaConfig.get<string>('apiBaseUrl') || 'https://ai.costa.app'
+export const OAUTH2_CLIENT_ID = costaConfig.get<string>('oauth2.clientId') || '6E1C382C-1034-4466-8CCF-65ED17DBBA3D'
+export const OAUTH2_REDIRECT_URI = costaConfig.get<string>('oauth2.redirectUri') || 'vscode://costa.costa-code/callback'
 
-export const config = vscode.workspace.getConfiguration('costa');
+// Export the full config object for convenience
+export const config = costaConfig

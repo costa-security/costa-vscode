@@ -1,9 +1,9 @@
 import type { ExtensionContext } from 'vscode'
 import * as crypto from 'node:crypto'
 import * as process from 'node:process'
-import { env, Uri, window, commands } from 'vscode'
+import { commands, env, Uri, window } from 'vscode'
 import { getOutputChannel } from './api'
-import { config } from './config'
+import { API_BASE_URL, OAUTH2_CLIENT_ID, OAUTH2_REDIRECT_URI } from './config'
 
 // Use a more comprehensive logging approach
 function debugLog(message: string) {
@@ -34,15 +34,41 @@ export interface OAuthToken {
   token_type?: string
 }
 
+// Token response interface
+interface TokenResponse {
+  access_token: string
+  refresh_token?: string
+  expires_in: number
+  token_type: string
+}
+
 // Simple OAuth2 client implementation with PKCE
 class OAuth2Client {
   private token: OAuthToken | null = null
   private context: ExtensionContext | null = null
   private codeVerifier: string | null = null
-  private pendingLogin: { resolve: (value: boolean) => void; reject: (reason: any) => void } | null = null
+  private pendingLogin: { resolve: (value: boolean) => void, reject: (reason: any) => void } | null = null
 
   setContext(context: ExtensionContext) {
     this.context = context
+    // Load tokens on startup
+    this.loadAndPrintTokensOnStartup()
+  }
+
+  // Load and print tokens on startup for debugging
+  private async loadAndPrintTokensOnStartup() {
+    try {
+      const token = await this.loadToken()
+      if (token) {
+        this.token = token
+        debugLog('Tokens loaded on startup')
+        this.printTokensToLogs()
+      } else {
+        debugLog('No tokens found on startup')
+      }
+    } catch (error) {
+      debugLog(`Error loading tokens on startup: ${error}`)
+    }
   }
 
   // Generate a code verifier for PKCE
@@ -82,11 +108,11 @@ class OAuth2Client {
       }
 
       // Determine API base URL (use environment variable in development)
-      const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
+      const apiBaseUrl = process.env.COSTA_API_BASE_URL || API_BASE_URL || 'https://ai.costa.app'
 
       // Get OAuth2 configuration
-      const clientId = config.oauth2.clientId
-      const redirectUri = config.oauth2.redirectUri
+      const clientId = OAUTH2_CLIENT_ID
+      const redirectUri = OAUTH2_REDIRECT_URI
 
       debugLog(`API Base URL: ${apiBaseUrl}`)
       debugLog(`Client ID: ${clientId}`)
@@ -120,7 +146,7 @@ class OAuth2Client {
 
       // Set up a promise that will be resolved when we receive the callback
       return new Promise<boolean>((resolve, reject) => {
-        this.pendingLogin = { resolve, reject };
+        this.pendingLogin = { resolve, reject }
 
         // Register a disposable to handle the callback
         const disposable = commands.registerCommand('costa.handleOAuthCallback', async (uri: Uri) => {
@@ -175,8 +201,7 @@ class OAuth2Client {
               const tokenResponse = await this.exchangeCodeForToken(code, this.codeVerifier!)
 
               // Display the token in a dialog (as requested)
-              window.showInformationMessage(`Your access token is: ${tokenResponse.access_token}`,
-                { modal: true, detail: 'This is your OAuth2 access token. Keep it secure.' });
+              window.showInformationMessage(`Your access token is: ${tokenResponse.access_token}`, { modal: true, detail: 'This is your OAuth2 access token. Keep it secure.' })
 
               // Save the token
               this.token = {
@@ -185,7 +210,7 @@ class OAuth2Client {
                 expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in, // Add expires_in to current time
                 token_type: tokenResponse.token_type,
               }
-              this.saveToken()
+              await this.saveToken()
               getOutputChannel().appendLine('OAuth2 login successful')
               window.showInformationMessage('Successfully logged in to Costa')
 
@@ -213,7 +238,7 @@ class OAuth2Client {
 
         // Show a message to the user
         window.showInformationMessage('Please complete authentication in your browser. You will be redirected back to VS Code automatically.')
-      });
+      })
     }
     catch (error) {
       getOutputChannel().appendLine(`OAuth2 login error: ${error}`)
@@ -225,12 +250,12 @@ class OAuth2Client {
   // Method to handle OAuth callback from URI handler
   handleCallback(uri: Uri): void {
     debugLog(`handleCallback called with URI: ${uri.toString()}`)
-    commands.executeCommand('costa.handleOAuthCallback', uri);
+    commands.executeCommand('costa.handleOAuthCallback', uri)
   }
 
   async getAccessToken(): Promise<string | null> {
     if (!this.token) {
-      const storedToken = this.loadToken()
+      const storedToken = await this.loadToken()
       if (storedToken) {
         this.token = storedToken
       }
@@ -242,8 +267,27 @@ class OAuth2Client {
 
     // Check if token is expired (with 5 minute buffer)
     if (this.token.expires_at && Date.now() / 1000 > this.token.expires_at - 300) {
-      // Token expired, try to refresh or re-login
-      return null
+      // Token expired, try to refresh if we have a refresh token
+      if (this.token.refresh_token) {
+        debugLog('Token expired, attempting to refresh')
+        try {
+          const newToken = await this.refreshAccessToken(this.token.refresh_token)
+          this.token = newToken
+          await this.saveToken()
+          return this.token.access_token
+        } catch (error) {
+          debugLog(`Failed to refresh token: ${error}, clearing stored tokens`)
+          await this.clearToken()
+          this.token = null
+          return null
+        }
+      } else {
+        // No refresh token, clear stored tokens
+        debugLog('Token expired and no refresh token available, clearing stored tokens')
+        await this.clearToken()
+        this.token = null
+        return null
+      }
     }
 
     return this.token.access_token
@@ -253,20 +297,33 @@ class OAuth2Client {
     return !!this.token?.access_token
   }
 
-  logout() {
+  // Method to print current tokens to logs for testing
+  printTokensToLogs(): void {
+    if (this.token) {
+      debugLog(`Current Access Token: ${this.token.access_token}`)
+      debugLog(`Current Refresh Token: ${this.token.refresh_token || 'N/A'}`)
+      debugLog(`Token Expires At: ${this.token.expires_at || 'N/A'}`)
+      debugLog(`Token Type: ${this.token.token_type || 'N/A'}`)
+    }
+    else {
+      debugLog('No tokens currently stored')
+    }
+  }
+
+  async logout() {
     this.token = null
     this.codeVerifier = null
-    this.clearToken()
+    await this.clearToken()
     getOutputChannel().appendLine('OAuth2 logout successful')
     window.showInformationMessage('Logged out from Costa')
   }
 
-  private loadToken(): OAuthToken | null {
+  private async loadToken(): Promise<OAuthToken | null> {
     try {
       if (!this.context) {
         return null
       }
-      const tokenStr = this.context.globalState.get<string>('costa.oauth2.token')
+      const tokenStr = await this.context.secrets.get('costa.oauth2.token')
       return tokenStr ? JSON.parse(tokenStr) : null
     }
     catch (error) {
@@ -275,19 +332,75 @@ class OAuth2Client {
     }
   }
 
-  private saveToken() {
+  private async saveToken() {
     if (this.token && this.context) {
-      this.context.globalState.update('costa.oauth2.token', JSON.stringify(this.token))
+      await this.context.secrets.store('costa.oauth2.token', JSON.stringify(this.token))
     }
   }
 
-  private async exchangeCodeForToken(code: string, codeVerifier: string): Promise<any> {
+  private async refreshAccessToken(refreshToken: string): Promise<OAuthToken> {
     // Determine API base URL (use environment variable in development)
-    const apiBaseUrl = process.env.COSTA_API_BASE_URL || config.apiBaseUrl || 'https://ai.costa.app'
+    const apiBaseUrl = process.env.COSTA_API_BASE_URL || API_BASE_URL || 'https://ai.costa.app'
 
     // Get OAuth2 configuration
-    const clientId = config.oauth2.clientId
-    const redirectUri = config.oauth2.redirectUri
+    const clientId = OAUTH2_CLIENT_ID
+    const redirectUri = OAUTH2_REDIRECT_URI
+
+    const tokenUrl = new URL(`${apiBaseUrl}/oauth/token`)
+
+    if (!clientId || !redirectUri) {
+      throw new Error('OAuth2 configuration error: clientId or redirectUri is undefined')
+    }
+
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      refresh_token: refreshToken,
+      redirect_uri: redirectUri,
+    })
+
+    getOutputChannel().appendLine(`Refreshing token at: ${tokenUrl.toString()}`)
+
+    // Make actual HTTP request to refresh the token
+    try {
+      const response = await fetch(tokenUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        getOutputChannel().appendLine(`Token refresh failed with status ${response.status}: ${errorText}`)
+        throw new Error(`Token refresh failed: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+
+      const tokenResponse: any = await response.json()
+      getOutputChannel().appendLine(`Token refresh successful`)
+      getOutputChannel().appendLine(`New Access Token: ${tokenResponse.access_token}`)
+      getOutputChannel().appendLine(`New Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
+
+      return {
+        access_token: tokenResponse.access_token,
+        refresh_token: tokenResponse.refresh_token,
+        expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in,
+        token_type: tokenResponse.token_type,
+      }
+    } catch (error) {
+      getOutputChannel().appendLine(`Error during token refresh: ${error}`)
+      throw error
+    }
+  }
+
+  private async exchangeCodeForToken(code: string, codeVerifier: string): Promise<TokenResponse> {
+    // Determine API base URL (use environment variable in development)
+    const apiBaseUrl = process.env.COSTA_API_BASE_URL || API_BASE_URL || 'https://ai.costa.app'
+
+    // Get OAuth2 configuration
+    const clientId = OAUTH2_CLIENT_ID
+    const redirectUri = OAUTH2_REDIRECT_URI
 
     getOutputChannel().appendLine(`exchangeCodeForToken - Client ID: ${clientId}`)
     getOutputChannel().appendLine(`exchangeCodeForToken - Redirect URI: ${redirectUri}`)
@@ -295,7 +408,7 @@ class OAuth2Client {
     const tokenUrl = new URL(`${apiBaseUrl}/oauth/token`)
 
     if (!clientId || !redirectUri) {
-      throw new Error('OAuth2 configuration error: clientId or redirectUri is undefined');
+      throw new Error('OAuth2 configuration error: clientId or redirectUri is undefined')
     }
 
     const params = new URLSearchParams({
@@ -316,25 +429,49 @@ class OAuth2Client {
   -d "client_id=${clientId}" \\
   -d "code=${code}" \\
   -d "redirect_uri=${redirectUri}" \\
-  -d "code_verifier=${codeVerifier}"`;
+  -d "code_verifier=${codeVerifier}"`
 
     debugLog(`CURL command for testing token exchange:`)
     debugLog(curlCommand)
 
-    // In a real implementation, we would make an HTTP request to exchange the code
-    // For now, let's simulate a successful response
-    return {
-      access_token: 'simulated_access_token',
-      refresh_token: 'simulated_refresh_token',
-      expires_in: 3600,
-      token_type: 'Bearer',
+    // Make actual HTTP request to exchange the code for tokens
+    try {
+      const response = await fetch(tokenUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        getOutputChannel().appendLine(`Token exchange failed with status ${response.status}: ${errorText}`)
+        throw new Error(`Token exchange failed: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+
+      const tokenResponse: any = await response.json()
+      getOutputChannel().appendLine(`Token exchange successful`)
+      getOutputChannel().appendLine(`Access Token: ${tokenResponse.access_token}`)
+      getOutputChannel().appendLine(`Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
+
+      return {
+        access_token: tokenResponse.access_token,
+        refresh_token: tokenResponse.refresh_token,
+        expires_in: tokenResponse.expires_in,
+        token_type: tokenResponse.token_type,
+      }
+    }
+    catch (error) {
+      getOutputChannel().appendLine(`Error during token exchange: ${error}`)
+      throw error
     }
   }
 
-  private clearToken() {
+  private async clearToken() {
     if (this.context) {
-      this.context.globalState.update('costa.oauth2.token', undefined)
-      this.context.globalState.update('costa.oauth2.state', undefined)
+      await this.context.secrets.delete('costa.oauth2.token')
+      await this.context.globalState.update('costa.oauth2.state', undefined)
     }
   }
 }
