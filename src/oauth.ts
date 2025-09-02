@@ -1,3 +1,4 @@
+import * as time from './utils/time'
 import type { ExtensionContext } from 'vscode'
 import * as crypto from 'node:crypto'
 import * as process from 'node:process'
@@ -302,7 +303,7 @@ class OAuth2Client {
     if (this.token) {
       debugLog(`Current Access Token: ${this.token.access_token}`)
       debugLog(`Current Refresh Token: ${this.token.refresh_token || 'N/A'}`)
-      debugLog(`Token Expires At: ${this.token.expires_at || 'N/A'}`)
+      debugLog(`Token Expires At: ${time.formatExpiryLine(this.token.expires_at)}`)
       debugLog(`Token Type: ${this.token.token_type || 'N/A'}`)
     }
     else {
