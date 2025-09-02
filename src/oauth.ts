@@ -131,7 +131,7 @@ class OAuth2Client {
       authUrl.searchParams.append('client_id', clientId)
       authUrl.searchParams.append('redirect_uri', redirectUri)
       authUrl.searchParams.append('response_type', 'code')
-      authUrl.searchParams.append('scope', 'openid profile email usage_information offline_access view_notifications')
+      authUrl.searchParams.append('scope', 'openid profile email usage offline_access notifications')
       authUrl.searchParams.append('state', state)
       authUrl.searchParams.append('code_challenge', codeChallenge)
       authUrl.searchParams.append('code_challenge_method', 'S256')
