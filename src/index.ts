@@ -6,6 +6,7 @@ import { oauth2Client } from './oauth'
 import { PrimaryStatus } from './status/primaryStatus'
 import { PointsStatus } from './status/pointsStatus'
 import { ContextStatus } from './status/contextStatus'
+import { LoginPanel } from './ui/loginPanel';
 
 const { activate, deactivate } = defineExtension((context) => {
   // Initialize OAuth2 client with context
@@ -29,29 +30,34 @@ const { activate, deactivate } = defineExtension((context) => {
   const contextStatus = new ContextStatus()
   context.subscriptions.push(contextStatus)
 
-  const doMoreItem = window.createStatusBarItem(StatusBarAlignment.Left, 98)
-  doMoreItem.text = 'SSE not connected'
-  doMoreItem.tooltip = 'hello world - fix me second'
-  doMoreItem.command = 'costa.doSSEStuff'
-  doMoreItem.color = new ThemeColor('charts.red')
-  doMoreItem.show()
-
+  // If we are not logged in, only show primary and make it a warning
+  if (oauth2Client.isLoggedIn()) {
+    primaryStatus.setLoggedIn()
+  } else {
+    primaryStatus.setLoggedOut()
+  }
 
   // Register all commands
   useCommands({
     'costa.showExtensionInfo': () => {
       window.showInformationMessage('💫 ready to explore the universe?')
     },
+      'costa.showLoginPanel': () => {
+      LoginPanel.show(context);   // open or focus the singleton
+    },
     'costa.login': async () => {
-      window.showInformationMessage('Starting Costa authentication process...')
-      const success = await oauth2Client.login()
+      window.showInformationMessage('Starting Costa authentication process...');
+      const success = await oauth2Client.login();
       if (success) {
-        window.showInformationMessage('Successfully logged in to Costa')
+        window.showInformationMessage('Successfully logged in to Costa');
+        LoginPanel.closeIfOpen();  // ✅ ensure any open login panel is closed
+        primaryStatus.setLoggedIn();
       }
     },
     'costa.logout': async () => {
       await oauth2Client.logout()
       window.showInformationMessage('Logged out from Costa')
+      primaryStatus.setLoggedOut()
     },
     'costa.oauthCallback': async (uri: Uri) => {
       // This command will be called when the OAuth callback URI is opened

@@ -1,5 +1,5 @@
 // src/status/primaryStatus.ts
-import { StatusBarAlignment, window, type Disposable } from 'vscode'
+import { StatusBarAlignment, ThemeColor, window, type Disposable } from 'vscode'
 
 export class PrimaryStatus implements Disposable {
   private readonly item = window.createStatusBarItem(StatusBarAlignment.Left, 100)
@@ -12,13 +12,17 @@ export class PrimaryStatus implements Disposable {
   }
 
   setLoggedIn() {
-    this.item.text = '$(check) logged in'
+    this.item.text = '💫'
+    this.item.backgroundColor = new ThemeColor('statusBarItem.activeBackground')
     this.item.tooltip = 'Logged in to Costa'
   }
 
   setLoggedOut() {
-    this.item.text = '💫'
-    this.item.tooltip = '💫 Click to login'
+    this.item.text = '💫 Login to Costa Code'
+    this.item.color = new ThemeColor('charts.purple')
+    this.item.backgroundColor = new ThemeColor('statusBarItem.warningBackground')
+    this.item.tooltip = ''
+    this.item.command = 'costa.showLoginPanel'
   }
 
   dispose() {
