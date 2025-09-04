@@ -35,6 +35,14 @@ export class PointsStatus implements Disposable {
     this.item.tooltip = `Points Usage (${pct}%)`
   }
 
+  show() {
+    this.item.show()
+  }
+
+  hide() {
+    this.item.hide()
+  }
+
   dispose() {
     this.item.dispose()
   }

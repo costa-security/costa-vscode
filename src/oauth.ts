@@ -272,7 +272,9 @@ class OAuth2Client {
       if (this.token.refresh_token) {
         debugLog('Token expired, attempting to refresh')
         try {
+          console.log("above await ")
           const newToken = await this.refreshAccessToken(this.token.refresh_token)
+          console.log("newToken is: " + newToken)
           this.token = newToken
           await this.saveToken()
           return this.token.access_token
@@ -295,6 +297,8 @@ class OAuth2Client {
   }
 
   isLoggedIn(): boolean {
+    console.log('hello world form isLoggedIn')
+    console.log('this.token is '+ this.token)
     return !!this.token?.access_token
   }
 

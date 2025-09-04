@@ -39,6 +39,14 @@ export class ContextStatus implements Disposable {
     this.item.tooltip = `Context Length: ${context_length}`
   }
 
+  show() {
+    this.item.show()
+  }
+
+  hide() {
+    this.item.hide()
+  }
+
   dispose() {
     this.item.dispose()
   }

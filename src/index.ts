@@ -31,18 +31,26 @@ const { activate, deactivate } = defineExtension((context) => {
   context.subscriptions.push(contextStatus)
 
   // If we are not logged in, only show primary and make it a warning
-  if (oauth2Client.isLoggedIn()) {
-    primaryStatus.setLoggedIn()
-  } else {
-    primaryStatus.setLoggedOut()
-  }
+  void oauth2Client.getAccessToken()
+    .then(Boolean)
+    .then(isLoggedIn => {
+      if (isLoggedIn) {
+        primaryStatus.setLoggedIn()
+        pointsStatus.show()
+        contextStatus.show()
+      } else {
+        primaryStatus.setLoggedOut()
+        pointsStatus.hide()
+        contextStatus.hide()
+      }
+    })
 
   // Register all commands
   useCommands({
     'costa.showExtensionInfo': () => {
       window.showInformationMessage('💫 ready to explore the universe?')
     },
-      'costa.showLoginPanel': () => {
+    'costa.showLoginPanel': () => {
       LoginPanel.show(context);   // open or focus the singleton
     },
     'costa.login': async () => {
