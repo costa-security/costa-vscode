@@ -6,6 +6,7 @@ import { oauth2Client } from './oauth'
 import { PrimaryStatus } from './status/primaryStatus'
 import { PointsStatus } from './status/pointsStatus'
 import { ContextStatus } from './status/contextStatus'
+import { UsageStream } from './usageStream'
 
 const { activate, deactivate } = defineExtension((context) => {
   // Initializers
@@ -25,6 +26,15 @@ const { activate, deactivate } = defineExtension((context) => {
   const contextStatus = new ContextStatus()
   context.subscriptions.push(contextStatus)
 
+  // Create usage stream
+  const usageStream = new UsageStream()
+
+  // Handle usage data updates
+  usageStream.on('usage', (data: any) => {
+    pointsStatus.update(data.points, data.total_points)
+    contextStatus.update(data.context_length)
+  })
+
   // If we are not logged in, only show primary and make it a warning
   void oauth2Client.getAccessToken()
     .then(Boolean)
@@ -33,6 +43,8 @@ const { activate, deactivate } = defineExtension((context) => {
         primaryStatus.setLoggedIn()
         pointsStatus.show()
         contextStatus.show()
+        // Start the usage stream
+        usageStream.connect().catch(err => log.error('Error starting usage stream:', err))
       } else {
         primaryStatus.setLoggedOut()
         pointsStatus.hide()
@@ -51,12 +63,20 @@ const { activate, deactivate } = defineExtension((context) => {
       if (success) {
         window.showInformationMessage('Successfully logged in to Costa');
         primaryStatus.setLoggedIn();
+        pointsStatus.show()
+        contextStatus.show()
+        // Start the usage stream after login
+        usageStream.connect().catch(err => log.error('Error starting usage stream:', err))
       }
     },
     'costa.logout': async () => {
       await oauth2Client.logout()
       window.showInformationMessage('Logged out from Costa')
       primaryStatus.setLoggedOut()
+      pointsStatus.hide()
+      contextStatus.hide()
+      // Disconnect the usage stream
+      usageStream.disconnect()
     },
     'costa.oauthCallback': async (uri: Uri) => {
       // This command will be called when the OAuth callback URI is opened
@@ -89,6 +109,7 @@ const { activate, deactivate } = defineExtension((context) => {
 
   // Return a cleanup function to dispose the status bar items
   return () => {
+    usageStream.disconnect()
   }
 })
 

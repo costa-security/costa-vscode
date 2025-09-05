@@ -253,32 +253,58 @@ class OAuth2Client {
 
     // Check if token is expired (with 5 minute buffer)
     if (this.token.expires_at && Date.now() / 1000 > this.token.expires_at - 300) {
-      // Token expired, try to refresh if we have a refresh token
-      if (this.token.refresh_token) {
-        log.info('Token expired, attempting to refresh')
-        try {
-          console.log("above await ")
-          const newToken = await this.refreshAccessToken(this.token.refresh_token)
-          console.log("newToken is: " + newToken)
-          this.token = newToken
-          await this.saveToken()
-          return this.token.access_token
-        } catch (error) {
-          log.info(`Failed to refresh token: ${error}, clearing stored tokens`)
-          await this.clearToken()
-          this.token = null
-          return null
-        }
-      } else {
-        // No refresh token, clear stored tokens
-        log.info('Token expired and no refresh token available, clearing stored tokens')
+      return this.refreshTokenIfNeeded()
+    }
+
+    return this.token.access_token
+  }
+
+  /**
+   * Force refresh the access token
+   */
+  async forceRefreshToken(): Promise<string | null> {
+    if (!this.token || !this.token.refresh_token) {
+      return null
+    }
+
+    try {
+      const newToken = await this.refreshAccessToken(this.token.refresh_token)
+      this.token = newToken
+      await this.saveToken()
+      return this.token.access_token
+    } catch (error) {
+      log.info(`Failed to force refresh token: ${error}, clearing stored tokens`)
+      await this.clearToken()
+      this.token = null
+      return null
+    }
+  }
+
+  /**
+   * Refresh token if needed
+   */
+  private async refreshTokenIfNeeded(): Promise<string | null> {
+    // Token expired, try to refresh if we have a refresh token
+    if (this.token?.refresh_token) {
+      log.info('Token expired, attempting to refresh')
+      try {
+        const newToken = await this.refreshAccessToken(this.token.refresh_token)
+        this.token = newToken
+        await this.saveToken()
+        return this.token.access_token
+      } catch (error) {
+        log.info(`Failed to refresh token: ${error}, clearing stored tokens`)
         await this.clearToken()
         this.token = null
         return null
       }
+    } else {
+      // No refresh token, clear stored tokens
+      log.info('Token expired and no refresh token available, clearing stored tokens')
+      await this.clearToken()
+      this.token = null
+      return null
     }
-
-    return this.token.access_token
   }
 
   isLoggedIn(): boolean {

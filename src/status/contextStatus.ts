@@ -27,6 +27,7 @@ export class ContextStatus implements Disposable {
     const formatted = context_length >= 1000
       ? `${Math.round(context_length / 1000)}k`
       : `${context_length}`
+    return formatted;
   }
 
   /**
