@@ -1,23 +1,18 @@
 import type { Uri } from 'vscode'
 import { defineExtension, useCommands } from 'reactive-vscode'
-import { commands, StatusBarAlignment, ThemeColor, window } from 'vscode'
-import { getOutputChannel } from './api'
+import { commands, window } from 'vscode'
+import { initLogger, log } from './utils/logger'
 import { oauth2Client } from './oauth'
 import { PrimaryStatus } from './status/primaryStatus'
 import { PointsStatus } from './status/pointsStatus'
 import { ContextStatus } from './status/contextStatus'
-import { LoginPanel } from './ui/loginPanel';
 
 const { activate, deactivate } = defineExtension((context) => {
-  // Initialize OAuth2 client with context
+  // Initializers
+  // Initialize the logger
+  initLogger(context)
+  // Initialize OAuth2 client
   oauth2Client.setContext(context)
-
-  // Add startup logging
-  getOutputChannel().appendLine('Costa extension activated')
-  console.warn('Costa extension activated - startup logging working')
-
-  window.showInformationMessage('opening the pod bay doors...')
-
 
   // 1. Create status bar items
   const primaryStatus = new PrimaryStatus()
@@ -50,15 +45,11 @@ const { activate, deactivate } = defineExtension((context) => {
     'costa.showExtensionInfo': () => {
       window.showInformationMessage('💫 ready to explore the universe?')
     },
-    'costa.showLoginPanel': () => {
-      LoginPanel.show(context);   // open or focus the singleton
-    },
     'costa.login': async () => {
       window.showInformationMessage('Starting Costa authentication process...');
       const success = await oauth2Client.login();
       if (success) {
         window.showInformationMessage('Successfully logged in to Costa');
-        LoginPanel.closeIfOpen();  // ✅ ensure any open login panel is closed
         primaryStatus.setLoggedIn();
       }
     },
@@ -70,8 +61,7 @@ const { activate, deactivate } = defineExtension((context) => {
     'costa.oauthCallback': async (uri: Uri) => {
       // This command will be called when the OAuth callback URI is opened
       // Forward to the OAuth2 client
-      console.warn('Received OAuth callback URI:', uri.toString())
-      getOutputChannel().appendLine(`Received OAuth callback URI: ${uri.toString()}`)
+      log.info('Received OAuth callback URI:', uri.toString())
       oauth2Client.handleCallback(uri)
     },
     'costa.doSSEStuff': () => {
@@ -83,8 +73,7 @@ const { activate, deactivate } = defineExtension((context) => {
   context.subscriptions.push(
     window.registerUriHandler({
       handleUri(uri: Uri) {
-        console.log('URI Handler received:', uri.toString())
-        getOutputChannel().appendLine(`URI Handler received: ${uri.toString()}`)
+        log.info('URI Handler received:', uri.toString())
 
         // Check if this is our OAuth callback
         if (uri.path === '/callback') {
@@ -92,7 +81,7 @@ const { activate, deactivate } = defineExtension((context) => {
           commands.executeCommand('costa.oauthCallback', uri)
         }
         else {
-          getOutputChannel().appendLine(`Unknown URI path: ${uri.path}`)
+          log.info(`Unknown URI path: ${uri.path}`)
         }
       },
     }),

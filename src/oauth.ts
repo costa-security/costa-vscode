@@ -2,21 +2,10 @@ import * as time from './utils/time'
 import type { ExtensionContext } from 'vscode'
 import * as crypto from 'node:crypto'
 import * as process from 'node:process'
+import { log } from './utils/logger'
 import { commands, env, Uri, window } from 'vscode'
 import { getOutputChannel } from './api'
 import { API_BASE_URL, OAUTH2_CLIENT_ID, OAUTH2_REDIRECT_URI } from './config'
-
-// Use a more comprehensive logging approach
-function debugLog(message: string) {
-  console.warn(`[COSTA-OAUTH] ${message}`) // This goes to Debug Console
-  try {
-    getOutputChannel().appendLine(message) // This goes to Output panel
-  }
-  catch {
-    // Fallback if getOutputChannel is not available during early startup
-    console.warn(`[COSTA-FALLBACK] ${message}`)
-  }
-}
 
 // Load environment variables in development
 if (process.env.NODE_ENV !== 'production') {
@@ -62,13 +51,13 @@ class OAuth2Client {
       const token = await this.loadToken()
       if (token) {
         this.token = token
-        debugLog('Tokens loaded on startup')
+        log.info('Tokens loaded on startup')
         this.printTokensToLogs()
       } else {
-        debugLog('No tokens found on startup')
+        log.info('No tokens found on startup')
       }
     } catch (error) {
-      debugLog(`Error loading tokens on startup: ${error}`)
+      log.info(`Error loading tokens on startup: ${error}`)
     }
   }
 
@@ -96,12 +85,12 @@ class OAuth2Client {
       const codeChallenge = this.generateCodeChallenge(this.codeVerifier)
 
       // Log PKCE values for debugging/testing
-      debugLog(`Generated Code Verifier: ${this.codeVerifier}`)
-      debugLog(`Generated Code Challenge: ${codeChallenge}`)
+      log.info(`Generated Code Verifier: ${this.codeVerifier}`)
+      log.info(`Generated Code Challenge: ${codeChallenge}`)
 
       // Create state parameter for security
       const state = crypto.randomBytes(16).toString('hex')
-      debugLog(`Generated State: ${state}`)
+      log.info(`Generated State: ${state}`)
 
       // Store state in global state for verification later
       if (this.context) {
@@ -115,15 +104,15 @@ class OAuth2Client {
       const clientId = OAUTH2_CLIENT_ID
       const redirectUri = OAUTH2_REDIRECT_URI
 
-      debugLog(`API Base URL: ${apiBaseUrl}`)
-      debugLog(`Client ID: ${clientId}`)
-      debugLog(`Redirect URI: ${redirectUri}`)
+      log.info(`API Base URL: ${apiBaseUrl}`)
+      log.info(`Client ID: ${clientId}`)
+      log.info(`Redirect URI: ${redirectUri}`)
 
       // Check if values are undefined and show error
       if (!clientId || !redirectUri) {
-        debugLog('ERROR: OAuth2 configuration values are undefined!')
-        debugLog(`Client ID is: ${clientId} (type: ${typeof clientId})`)
-        debugLog(`Redirect URI is: ${redirectUri} (type: ${typeof redirectUri})`)
+        log.info('ERROR: OAuth2 configuration values are undefined!')
+        log.info(`Client ID is: ${clientId} (type: ${typeof clientId})`)
+        log.info(`Redirect URI is: ${redirectUri} (type: ${typeof redirectUri})`)
         window.showErrorMessage('OAuth2 configuration error: clientId or redirectUri is undefined')
         return false
       }
@@ -141,8 +130,8 @@ class OAuth2Client {
       const uri = Uri.parse(authUrl.toString())
       await env.openExternal(uri)
 
-      getOutputChannel().appendLine(`Opened browser for OAuth2 authentication: ${authUrl.toString()}`)
-      debugLog(`Full Authorization URL: ${authUrl.toString()}`)
+      log.info(`Opened browser for OAuth2 authentication: ${authUrl.toString()}`)
+      log.info(`Full Authorization URL: ${authUrl.toString()}`)
       window.showInformationMessage('Opened browser for Costa authentication. Please complete the login process.')
 
       // Set up a promise that will be resolved when we receive the callback
@@ -151,7 +140,7 @@ class OAuth2Client {
 
         // Register a disposable to handle the callback
         const disposable = commands.registerCommand('costa.handleOAuthCallback', async (uri: Uri) => {
-          debugLog(`Received OAuth callback: ${uri.toString()}`)
+          log.info(`Received OAuth callback: ${uri.toString()}`)
           try {
             // Parse the callback URL
             const query = new URLSearchParams(uri.query)
@@ -164,7 +153,7 @@ class OAuth2Client {
 
             if (error) {
               const errorMessage = `OAuth2 authentication failed: ${error}`
-              debugLog(errorMessage)
+              log.info(errorMessage)
               window.showErrorMessage(errorMessage)
               this.pendingLogin?.resolve(false)
               this.pendingLogin = null
@@ -173,23 +162,23 @@ class OAuth2Client {
 
             if (!code) {
               const errorMessage = 'OAuth2 authentication failed: No authorization code received'
-              debugLog(errorMessage)
+              log.info(errorMessage)
               window.showErrorMessage(errorMessage)
               this.pendingLogin?.resolve(false)
               this.pendingLogin = null
               return
             }
 
-            debugLog(`Received Authorization Code: ${code}`)
+            log.info(`Received Authorization Code: ${code}`)
 
             // Verify state parameter
             const storedState = this.context?.globalState.get<string>('costa.oauth2.state')
-            debugLog(`Stored State: ${storedState}`)
-            debugLog(`Received State: ${receivedState}`)
+            log.info(`Stored State: ${storedState}`)
+            log.info(`Received State: ${receivedState}`)
 
             if (storedState !== receivedState) {
               const errorMessage = 'OAuth2 authentication failed: Invalid state parameter'
-              debugLog(errorMessage)
+              log.info(errorMessage)
               window.showErrorMessage(errorMessage)
               this.pendingLogin?.resolve(false)
               this.pendingLogin = null
@@ -198,11 +187,8 @@ class OAuth2Client {
 
             // Exchange the authorization code for an access token
             try {
-              debugLog(`Exchanging code for token with Code Verifier: ${this.codeVerifier}`)
+              log.info(`Exchanging code for token with Code Verifier: ${this.codeVerifier}`)
               const tokenResponse = await this.exchangeCodeForToken(code, this.codeVerifier!)
-
-              // Display the token in a dialog (as requested)
-              window.showInformationMessage(`Your access token is: ${tokenResponse.access_token}`, { modal: true, detail: 'This is your OAuth2 access token. Keep it secure.' })
 
               // Save the token
               this.token = {
@@ -212,21 +198,21 @@ class OAuth2Client {
                 token_type: tokenResponse.token_type,
               }
               await this.saveToken()
-              getOutputChannel().appendLine('OAuth2 login successful')
+              log.info('OAuth2 login successful')
               window.showInformationMessage('Successfully logged in to Costa')
 
               this.pendingLogin?.resolve(true)
               this.pendingLogin = null
             }
             catch (error) {
-              getOutputChannel().appendLine(`OAuth2 token exchange error: ${error}`)
+              log.info(`OAuth2 token exchange error: ${error}`)
               window.showErrorMessage(`OAuth2 token exchange failed: ${error}`)
               this.pendingLogin?.resolve(false)
               this.pendingLogin = null
             }
           }
           catch (error) {
-            getOutputChannel().appendLine(`OAuth2 callback error: ${error}`)
+            log.info(`OAuth2 callback error: ${error}`)
             window.showErrorMessage(`OAuth2 callback failed: ${error}`)
             disposable.dispose()
             this.pendingLogin?.resolve(false)
@@ -242,7 +228,7 @@ class OAuth2Client {
       })
     }
     catch (error) {
-      getOutputChannel().appendLine(`OAuth2 login error: ${error}`)
+      log.info(`OAuth2 login error: ${error}`)
       window.showErrorMessage(`OAuth2 login failed: ${error}`)
       return false
     }
@@ -250,7 +236,6 @@ class OAuth2Client {
 
   // Method to handle OAuth callback from URI handler
   handleCallback(uri: Uri): void {
-    debugLog(`handleCallback called with URI: ${uri.toString()}`)
     commands.executeCommand('costa.handleOAuthCallback', uri)
   }
 
@@ -270,7 +255,7 @@ class OAuth2Client {
     if (this.token.expires_at && Date.now() / 1000 > this.token.expires_at - 300) {
       // Token expired, try to refresh if we have a refresh token
       if (this.token.refresh_token) {
-        debugLog('Token expired, attempting to refresh')
+        log.info('Token expired, attempting to refresh')
         try {
           console.log("above await ")
           const newToken = await this.refreshAccessToken(this.token.refresh_token)
@@ -279,14 +264,14 @@ class OAuth2Client {
           await this.saveToken()
           return this.token.access_token
         } catch (error) {
-          debugLog(`Failed to refresh token: ${error}, clearing stored tokens`)
+          log.info(`Failed to refresh token: ${error}, clearing stored tokens`)
           await this.clearToken()
           this.token = null
           return null
         }
       } else {
         // No refresh token, clear stored tokens
-        debugLog('Token expired and no refresh token available, clearing stored tokens')
+        log.info('Token expired and no refresh token available, clearing stored tokens')
         await this.clearToken()
         this.token = null
         return null
@@ -305,13 +290,13 @@ class OAuth2Client {
   // Method to print current tokens to logs for testing
   printTokensToLogs(): void {
     if (this.token) {
-      debugLog(`Current Access Token: ${this.token.access_token}`)
-      debugLog(`Current Refresh Token: ${this.token.refresh_token || 'N/A'}`)
-      debugLog(`Token Expires At: ${time.formatExpiryLine(this.token.expires_at)}`)
-      debugLog(`Token Type: ${this.token.token_type || 'N/A'}`)
+      log.info(`Current Access Token: ${this.token.access_token}`)
+      log.info(`Current Refresh Token: ${this.token.refresh_token || 'N/A'}`)
+      log.info(`Token Expires At: ${time.formatExpiryLine(this.token.expires_at)}`)
+      log.info(`Token Type: ${this.token.token_type || 'N/A'}`)
     }
     else {
-      debugLog('No tokens currently stored')
+      log.info('No tokens currently stored')
     }
   }
 
@@ -319,7 +304,7 @@ class OAuth2Client {
     this.token = null
     this.codeVerifier = null
     await this.clearToken()
-    getOutputChannel().appendLine('OAuth2 logout successful')
+    log.info('OAuth2 logout successful')
     window.showInformationMessage('Logged out from Costa')
   }
 
@@ -332,7 +317,7 @@ class OAuth2Client {
       return tokenStr ? JSON.parse(tokenStr) : null
     }
     catch (error) {
-      getOutputChannel().appendLine(`Error loading token: ${error}`)
+      log.info(`Error loading token: ${error}`)
       return null
     }
   }
@@ -364,7 +349,7 @@ class OAuth2Client {
       redirect_uri: redirectUri,
     })
 
-    getOutputChannel().appendLine(`Refreshing token at: ${tokenUrl.toString()}`)
+    log.info(`Refreshing token at: ${tokenUrl.toString()}`)
 
     // Make actual HTTP request to refresh the token
     try {
@@ -378,14 +363,14 @@ class OAuth2Client {
 
       if (!response.ok) {
         const errorText = await response.text()
-        getOutputChannel().appendLine(`Token refresh failed with status ${response.status}: ${errorText}`)
+        log.info(`Token refresh failed with status ${response.status}: ${errorText}`)
         throw new Error(`Token refresh failed: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const tokenResponse: any = await response.json()
-      getOutputChannel().appendLine(`Token refresh successful`)
-      getOutputChannel().appendLine(`New Access Token: ${tokenResponse.access_token}`)
-      getOutputChannel().appendLine(`New Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
+      log.info(`Token refresh successful`)
+      log.info(`New Access Token: ${tokenResponse.access_token}`)
+      log.info(`New Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
 
       return {
         access_token: tokenResponse.access_token,
@@ -394,7 +379,7 @@ class OAuth2Client {
         token_type: tokenResponse.token_type,
       }
     } catch (error) {
-      getOutputChannel().appendLine(`Error during token refresh: ${error}`)
+      log.info(`Error during token refresh: ${error}`)
       throw error
     }
   }
@@ -407,8 +392,8 @@ class OAuth2Client {
     const clientId = OAUTH2_CLIENT_ID
     const redirectUri = OAUTH2_REDIRECT_URI
 
-    getOutputChannel().appendLine(`exchangeCodeForToken - Client ID: ${clientId}`)
-    getOutputChannel().appendLine(`exchangeCodeForToken - Redirect URI: ${redirectUri}`)
+    log.info(`exchangeCodeForToken - Client ID: ${clientId}`)
+    log.info(`exchangeCodeForToken - Redirect URI: ${redirectUri}`)
 
     const tokenUrl = new URL(`${apiBaseUrl}/oauth/token`)
 
@@ -424,8 +409,8 @@ class OAuth2Client {
       code_verifier: codeVerifier,
     })
 
-    getOutputChannel().appendLine(`Exchanging code for token at: ${tokenUrl.toString()}`)
-    getOutputChannel().appendLine(`Token request params: ${params.toString()}`)
+    log.info(`Exchanging code for token at: ${tokenUrl.toString()}`)
+    log.info(`Token request params: ${params.toString()}`)
 
     // Log the curl command for testing
     const curlCommand = `curl -X POST "${tokenUrl.toString()}" \\
@@ -436,8 +421,8 @@ class OAuth2Client {
   -d "redirect_uri=${redirectUri}" \\
   -d "code_verifier=${codeVerifier}"`
 
-    debugLog(`CURL command for testing token exchange:`)
-    debugLog(curlCommand)
+    log.info(`CURL command for testing token exchange:`)
+    log.info(curlCommand)
 
     // Make actual HTTP request to exchange the code for tokens
     try {
@@ -451,14 +436,14 @@ class OAuth2Client {
 
       if (!response.ok) {
         const errorText = await response.text()
-        getOutputChannel().appendLine(`Token exchange failed with status ${response.status}: ${errorText}`)
+        log.info(`Token exchange failed with status ${response.status}: ${errorText}`)
         throw new Error(`Token exchange failed: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const tokenResponse: any = await response.json()
-      getOutputChannel().appendLine(`Token exchange successful`)
-      getOutputChannel().appendLine(`Access Token: ${tokenResponse.access_token}`)
-      getOutputChannel().appendLine(`Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
+      log.info(`Token exchange successful`)
+      log.info(`Access Token: ${tokenResponse.access_token}`)
+      log.info(`Refresh Token: ${tokenResponse.refresh_token || 'N/A'}`)
 
       return {
         access_token: tokenResponse.access_token,
@@ -468,7 +453,7 @@ class OAuth2Client {
       }
     }
     catch (error) {
-      getOutputChannel().appendLine(`Error during token exchange: ${error}`)
+      log.info(`Error during token exchange: ${error}`)
       throw error
     }
   }
@@ -483,6 +468,3 @@ class OAuth2Client {
 
 // Export singleton instance
 export const oauth2Client = new OAuth2Client()
-
-// Add startup logging to verify logging is working
-debugLog('OAuth2 client initialized')

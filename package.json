@@ -37,13 +37,13 @@
     "commands": [
       {
         "command": "costa.login",
-        "title": "Costa: Login",
-        "category": "Costa"
+        "title": "Login",
+        "category": "Costa Code"
       },
       {
         "command": "costa.logout",
-        "title": "Costa: Logout",
-        "category": "Costa"
+        "title": "Logout",
+        "category": "Costa Code"
       }
     ],
     "configuration": {

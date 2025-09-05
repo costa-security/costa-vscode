@@ -80,7 +80,7 @@ export async function connectToAPI() {
     socket = new WebSocket(`${wsUrl}?token=${accessToken}`)
 
     socket.onopen = () => {
-      getOutputChannel().appendLine('Connected to Costa API')
+      log.info('Connected to Costa API')
       onConnectionStatusChange?.(true)
     }
 
@@ -90,24 +90,24 @@ export async function connectToAPI() {
         onDataChange?.(data)
       }
       catch (error) {
-        getOutputChannel().appendLine(`Error parsing Costa API message: ${error}`)
+        log.info(`Error parsing Costa API message: ${error}`)
       }
     }
 
     socket.onclose = () => {
-      getOutputChannel().appendLine('Disconnected from Costa API')
+      log.info('Disconnected from Costa API')
       onConnectionStatusChange?.(false)
       // Attempt to reconnect after 5 seconds
       reconnectTimeout = setTimeout(connectToAPI, 5000)
     }
 
     socket.onerror = (error) => {
-      getOutputChannel().appendLine(`Costa API connection error: ${error}`)
+      log.info(`Costa API connection error: ${error}`)
       window.showErrorMessage('Failed to connect to Costa API. Check your token and network connection.')
     }
   }
   catch (error) {
-    getOutputChannel().appendLine(`Error connecting to Costa API: ${error}`)
+    log.info(`Error connecting to Costa API: ${error}`)
     window.showErrorMessage(`Error connecting to Costa API: ${(error as Error).message}`)
   }
 }

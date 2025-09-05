@@ -22,7 +22,7 @@ export class PrimaryStatus implements Disposable {
     this.item.color = new ThemeColor('charts.purple')
     this.item.backgroundColor = new ThemeColor('statusBarItem.warningBackground')
     this.item.tooltip = ''
-    this.item.command = 'costa.showLoginPanel'
+    this.item.command = 'costa.login'
   }
 
   dispose() {

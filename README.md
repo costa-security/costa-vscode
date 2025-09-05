@@ -20,20 +20,12 @@
 
 <!-- commands -->
 
-| Command        | Title                |
-| -------------- | -------------------- |
-| `costa.login`  | Costa: Costa: Login  |
-| `costa.logout` | Costa: Costa: Logout |
+| Command        | Title              |
+| -------------- | ------------------ |
+| `costa.login`  | Costa Code: Login  |
+| `costa.logout` | Costa Code: Logout |
 
 <!-- commands -->
-
-## Sponsors
-
-<p align="center">
-  <a href="https://cdn.jsdelivr.net/gh/antfu/static/sponsors.svg">
-    <img src='https://cdn.jsdelivr.net/gh/antfu/static/sponsors.png'/>
-  </a>
-</p>
 
 ## License
 
