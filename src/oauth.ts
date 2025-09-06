@@ -4,7 +4,6 @@ import * as crypto from 'node:crypto'
 import * as process from 'node:process'
 import { log } from './utils/logger'
 import { commands, env, Uri, window } from 'vscode'
-import { getOutputChannel } from './api'
 import { API_BASE_URL, OAUTH2_CLIENT_ID, OAUTH2_REDIRECT_URI } from './config'
 
 // Load environment variables in development

@@ -29,4 +29,4 @@
 
 ## License
 
-[MIT](./LICENSE.md) License © 2022 [Anthony Fu](https://github.com/antfu)
+[MIT](./LICENSE.md) License © 2025 [Jacob Foster Heimark](https://github.com/hmk) and [Costa Security](https://costa.security)

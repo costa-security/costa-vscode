@@ -37,15 +37,7 @@ const { activate, deactivate } = defineExtension((context) => {
       // Add safeguards for data handling
       if (data) {
         pointsStatus.update(data.points, data.total_points)
-  import type { Uri } from 'vscode'
-import { defineExtension, useCommands } from 'reactive-vscode'
-import { commands, window } from 'vscode'
-import { initLogger, log } from './utils/logger'
-import { oauth2Client } from './oauth'
-import { PrimaryStatus } from './status/primaryStatus'
-import { PointsStatus } from './status/pointsStatus'
-import { ContextStatus } from './status/contextStatus'
-import { UsageStream } from './usageStream'
+
 
 const { activate, deactivate } = defineExtension((context) => {
   // Initializers
@@ -168,7 +160,7 @@ const { activate, deactivate } = defineExtension((context) => {
   }
 })
 
-export { activate, deactivate }      contextStatus.update(data.context_length)
+contextStatus.update(data.context_length)
       } else {
         log.warn('index: Received null or undefined usage data')
       }
