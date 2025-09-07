@@ -12,7 +12,6 @@ export class PointsStatus implements Disposable {
   constructor() {
     this.item.text = '$(sparkle) -/-'
     this.item.tooltip = 'Points Usage (-%)'
-    this.item.command = 'costa.showProgressDetails'
     this.item.show()
     log.info('PointsStatus: Initialized with default text')
   }

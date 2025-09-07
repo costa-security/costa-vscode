@@ -61,7 +61,7 @@ export class UsageStream extends EventEmitter {
     }, 30000)
   }
 
-  private async fetchUsageData(): Promise<void> {
+  async fetchUsageData(): Promise<void> {
     // Get access token
     const accessToken = await oauth2Client.getAccessToken()
     if (!accessToken) {

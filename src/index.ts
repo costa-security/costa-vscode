@@ -227,8 +227,18 @@ const { activate, deactivate } = defineExtension((context) => {
       log.info('Received OAuth callback URI:', uri.toString())
       oauth2Client.handleCallback(uri)
     },
-    'costa.doSSEStuff': () => {
-      window.showInformationMessage('did something')
+    'costa.refreshPoints': async () => {
+      log.info('index: Manually refreshing points data')
+      window.showInformationMessage('Refreshing Costa usage information...')
+      try {
+        // Trigger a manual refresh of the usage data
+        window.showInformationMessage('Refreshing Costa usage...')
+        await usageStream.fetchUsageData()
+      }
+      catch (error) {
+        log.error('index: Error refreshing points data:', error)
+        window.showErrorMessage('Failed to refresh Costa points data')
+      }
     },
   })
 

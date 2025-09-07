@@ -1,5 +1,4 @@
 import type { Disposable } from 'vscode'
-// src/status/primaryStatus.ts
 import { StatusBarAlignment, ThemeColor, window } from 'vscode'
 
 export class PrimaryStatus implements Disposable {
@@ -15,7 +14,8 @@ export class PrimaryStatus implements Disposable {
   setLoggedIn() {
     this.item.text = '💫'
     this.item.backgroundColor = new ThemeColor('statusBarItem.activeBackground')
-    this.item.tooltip = 'Logged in to Costa'
+    this.item.tooltip = 'Refresh Costa Points'
+    this.item.command = 'costa.refreshPoints' // Changed from costa.login to costa.refreshPoints
   }
 
   setLoggedOut() {
