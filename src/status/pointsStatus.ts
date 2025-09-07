@@ -1,4 +1,5 @@
-import { StatusBarAlignment, ThemeColor, window, type Disposable } from 'vscode'
+import type { Disposable } from 'vscode'
+import { StatusBarAlignment, ThemeColor, window } from 'vscode'
 import { log } from '../utils/logger'
 
 /**
@@ -20,9 +21,12 @@ export class PointsStatus implements Disposable {
    * Map percentage → VS Code theme color.
    */
   private colorForPercent(pct: number) {
-    if (pct >= 75) return new ThemeColor('charts.red')
-    if (pct >= 50) return new ThemeColor('charts.yellow')
-    if (pct >= 25) return new ThemeColor('charts.green')
+    if (pct >= 75)
+      return new ThemeColor('charts.red')
+    if (pct >= 50)
+      return new ThemeColor('charts.yellow')
+    if (pct >= 25)
+      return new ThemeColor('charts.green')
     return undefined
   }
 
@@ -34,8 +38,8 @@ export class PointsStatus implements Disposable {
     log.info(`PointsStatus: Update called with points=${points}, total_points=${total_points}`)
 
     // Check for undefined or invalid values
-    if (points === undefined || total_points === undefined ||
-        isNaN(Number(points)) || isNaN(Number(total_points))) {
+    if (points === undefined || total_points === undefined
+      || Number.isNaN(Number(points)) || Number.isNaN(Number(total_points))) {
       log.warn(`PointsStatus: Invalid values detected, resetting to default. points=${points}, total_points=${total_points}`)
       this.item.text = '$(sparkle) -/-'
       this.item.color = undefined
@@ -51,7 +55,8 @@ export class PointsStatus implements Disposable {
       this.item.text = newText
       this.item.color = this.colorForPercent(pct)
       this.item.tooltip = `Points Usage (${pct}%)`
-    } catch (error) {
+    }
+    catch (error) {
       log.error('PointsStatus: Error updating status bar:', error)
       // Fallback to default
       this.item.text = '$(sparkle) -/-'

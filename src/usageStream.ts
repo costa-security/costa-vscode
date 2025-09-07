@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events'
-import { log } from './utils/logger'
-import { oauth2Client } from './oauth'
-import { API_BASE_URL } from './config'
 import * as process from 'node:process'
+import { API_BASE_URL } from './config'
+import { oauth2Client } from './oauth'
+import { log } from './utils/logger'
 
 export interface UsageData {
   points: number | string // Can be a number or a string like '∞'
@@ -32,10 +32,12 @@ export class UsageStream extends EventEmitter {
 
       // Set up polling every 30 seconds
       this.setupPolling()
-    } catch (error) {
+    }
+    catch (error) {
       log.error('UsageStream: Error connecting to usage API:', error)
       this.scheduleReconnect()
-    } finally {
+    }
+    finally {
       this.isConnecting = false
     }
   }
@@ -49,7 +51,7 @@ export class UsageStream extends EventEmitter {
     // Poll every 30 seconds
     log.info('UsageStream: Setting up polling interval (30s)')
     this.pollInterval = setInterval(() => {
-      this.fetchUsageData().catch(err => {
+      this.fetchUsageData().catch((err) => {
         log.error('UsageStream: Error polling usage data:', err)
         // If we fail to fetch data, attempt to reconnect
         if (err.message.includes('401') || err.message.includes('403')) {
@@ -94,12 +96,14 @@ export class UsageStream extends EventEmitter {
             // Schedule a reconnect with a slight delay to allow the new token to propagate
             setTimeout(() => this.scheduleReconnect(), 1000)
             return
-          } else {
+          }
+          else {
             log.info('UsageStream: Failed to refresh token, scheduling reconnect')
             this.scheduleReconnect()
             throw new Error(`HTTP ${res.status} - Failed to refresh token`)
           }
-        } catch (refreshError) {
+        }
+        catch (refreshError) {
           log.error('UsageStream: Error refreshing token:', refreshError)
           this.scheduleReconnect()
           throw new Error(`HTTP ${res.status} - Token refresh failed: ${refreshError}`)

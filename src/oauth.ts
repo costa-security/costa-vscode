@@ -1,10 +1,10 @@
-import * as time from './utils/time'
 import type { ExtensionContext } from 'vscode'
 import * as crypto from 'node:crypto'
 import * as process from 'node:process'
-import { log } from './utils/logger'
 import { commands, env, Uri, window } from 'vscode'
 import { API_BASE_URL, OAUTH2_CLIENT_ID, OAUTH2_REDIRECT_URI } from './config'
+import { log } from './utils/logger'
+import * as time from './utils/time'
 
 // Load environment variables in development
 if (process.env.NODE_ENV !== 'production') {
@@ -52,10 +52,12 @@ class OAuth2Client {
         this.token = token
         log.info('Tokens loaded on startup')
         this.printTokensToLogs()
-      } else {
+      }
+      else {
         log.info('No tokens found on startup')
       }
-    } catch (error) {
+    }
+    catch (error) {
       log.info(`Error loading tokens on startup: ${error}`)
     }
   }
@@ -271,7 +273,8 @@ class OAuth2Client {
       this.token = newToken
       await this.saveToken()
       return this.token.access_token
-    } catch (error) {
+    }
+    catch (error) {
       log.info(`Failed to force refresh token: ${error}, clearing stored tokens`)
       await this.clearToken()
       this.token = null
@@ -291,13 +294,15 @@ class OAuth2Client {
         this.token = newToken
         await this.saveToken()
         return this.token.access_token
-      } catch (error) {
+      }
+      catch (error) {
         log.info(`Failed to refresh token: ${error}, clearing stored tokens`)
         await this.clearToken()
         this.token = null
         return null
       }
-    } else {
+    }
+    else {
       // No refresh token, clear stored tokens
       log.info('Token expired and no refresh token available, clearing stored tokens')
       await this.clearToken()
@@ -307,8 +312,6 @@ class OAuth2Client {
   }
 
   isLoggedIn(): boolean {
-    console.log('hello world form isLoggedIn')
-    console.log('this.token is '+ this.token)
     return !!this.token?.access_token
   }
 
@@ -403,7 +406,8 @@ class OAuth2Client {
         expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in,
         token_type: tokenResponse.token_type,
       }
-    } catch (error) {
+    }
+    catch (error) {
       log.info(`Error during token refresh: ${error}`)
       throw error
     }

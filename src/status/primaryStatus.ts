@@ -1,5 +1,6 @@
+import type { Disposable } from 'vscode'
 // src/status/primaryStatus.ts
-import { StatusBarAlignment, ThemeColor, window, type Disposable } from 'vscode'
+import { StatusBarAlignment, ThemeColor, window } from 'vscode'
 
 export class PrimaryStatus implements Disposable {
   private readonly item = window.createStatusBarItem(StatusBarAlignment.Left, 100)

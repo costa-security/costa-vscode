@@ -1,4 +1,5 @@
-import { StatusBarAlignment, ThemeColor, window, type Disposable } from 'vscode'
+import type { Disposable } from 'vscode'
+import { StatusBarAlignment, ThemeColor, window } from 'vscode'
 import { log } from '../utils/logger'
 
 /**
@@ -19,9 +20,12 @@ export class ContextStatus implements Disposable {
    * Map context length → VS Code theme color.
    */
   private colorForContextLength(context_length: number) {
-    if (context_length >= 100000) return new ThemeColor('charts.red')
-    if (context_length >= 25000) return new ThemeColor('charts.yellow')
-    if (context_length >= 10000) return new ThemeColor('charts.green')
+    if (context_length >= 100000)
+      return new ThemeColor('charts.red')
+    if (context_length >= 25000)
+      return new ThemeColor('charts.yellow')
+    if (context_length >= 10000)
+      return new ThemeColor('charts.green')
     return undefined
   }
 
@@ -29,7 +33,7 @@ export class ContextStatus implements Disposable {
     const formatted = context_length >= 1000
       ? `${Math.round(context_length / 1000)}k`
       : `${context_length}`
-    return formatted;
+    return formatted
   }
 
   /**
@@ -40,7 +44,7 @@ export class ContextStatus implements Disposable {
     log.info(`ContextStatus: Update called with context_length=${context_length}`)
 
     // Check for undefined or invalid values
-    if (context_length === undefined || isNaN(Number(context_length))) {
+    if (context_length === undefined || Number.isNaN(Number(context_length))) {
       log.warn(`ContextStatus: Invalid context_length detected, resetting to default. context_length=${context_length}`)
       this.item.text = '$(book) -k'
       this.item.color = undefined
@@ -56,7 +60,8 @@ export class ContextStatus implements Disposable {
       this.item.text = newText
       this.item.color = this.colorForContextLength(context_length)
       this.item.tooltip = `Context Length: ${context_length}`
-    } catch (error) {
+    }
+    catch (error) {
       log.error('ContextStatus: Error updating status bar:', error)
       // Fallback to default
       this.item.text = '$(book) -k'

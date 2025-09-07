@@ -36,7 +36,8 @@ export function formatRelativeToNow(epochSeconds: number) {
 }
 
 export function formatExpiryLine(expiresAt?: number) {
-  if (!expiresAt) return 'N/A'
+  if (!expiresAt)
+    return 'N/A'
   const absolute = formatAbsoluteLocal(expiresAt)
   const relative = formatRelativeToNow(expiresAt)
   const expired = expiresAt * 1000 <= Date.now()
